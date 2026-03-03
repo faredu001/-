@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>藥局自動化訂單系統</title>
+    <title>藥局雲端下單系統</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -16,6 +16,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
+        // --- 已自動填入你的專案資訊 ---
         const SUPABASE_URL = 'https://fsznlgxfmgqmykllhabq.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzem5sZ3hmbWdxbXlrbGxoYWJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1MjE2MzAsImV4cCI6MjA4ODA5NzYzMH0.UO5btEp_d9yQFddBRSz8vrTxiSfUpQBwEqO3LqVkfqI';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -26,11 +27,11 @@
             const [customer, setCustomer] = useState({ name: '', phone: '', address: '' });
             const [loading, setLoading] = useState(true);
 
-            // 自動從資料庫抓取藥品
             useEffect(() => {
                 const fetchProducts = async () => {
+                    // 對接你的「商品表」
                     const { data, error } = await supabaseClient
-                        .from('商品表')
+                        .from('商品表') 
                         .select('*')
                         .order('id', { ascending: true });
                     if (data) setMedicines(data);
@@ -44,50 +45,65 @@
                 return item ? sum + (item.price * (cart[code] || 0)) : sum;
             }, 0);
 
+            // 必填欄位檢查邏輯
+            const checkForm = () => {
+                if (!customer.name.trim()) { alert("請填寫『姓名』"); return false; }
+                if (!customer.phone.trim()) { alert("請填寫『電話』"); return false; }
+                if (!customer.address.trim()) { alert("請填寫『地址』"); return false; }
+                if (totalAmount === 0) { alert("請至少選擇一項商品數量"); return false; }
+                return true;
+            };
+
             const exportToLine = () => {
-                if (!customer.name || !customer.phone) return alert("請填寫姓名與電話");
+                if (!checkForm()) return;
+                
                 let text = `【藥局新訂單】\n👤 姓名：${customer.name}\n📞 電話：${customer.phone}\n🏠 地址：${customer.address}\n----------\n`;
                 medicines.forEach(m => {
                     if (cart[m.code] > 0) text += `■ ${m.name} x ${cart[m.code]} 盒\n`;
                 });
                 text += `----------\n💰 總計：$${totalAmount}\n⏰ 時間：${new Date().toLocaleString()}`;
+                
                 navigator.clipboard.writeText(text);
-                alert("訂單已複製，請至 LINE 貼上");
+                alert("訂單內容已複製！請開啟 LINE 貼上傳送。");
             };
 
             const submitOrder = async () => {
-                if (totalAmount === 0) return alert("請選擇商品");
+                if (!checkForm()) return;
+
                 const { error } = await supabaseClient.from('orders').insert([{
                     name: customer.name,
-                    status: `電話:${customer.phone} / 總額:${totalAmount}`,
+                    status: `電話:${customer.phone} / 地址:${customer.address} / 總額:${totalAmount}`,
                     created_at: new Date().toISOString()
                 }]);
-                if (!error) alert("訂單已傳送至雲端！");
+                
+                if (!error) alert("訂單已傳送至雲端系統！");
+                else alert("傳送失敗：" + error.message);
             };
 
-            if (loading) return <div className="p-10 text-center">載入藥品清單中...</div>;
+            if (loading) return <div className="p-10 text-center text-gray-500 italic">正在連線至門市資料庫...</div>;
 
             return (
-                <div className="max-w-xl mx-auto bg-white min-h-screen shadow-xl">
-                    <div className="bg-emerald-600 p-6 text-white text-center">
-                        <h1 className="text-2xl font-bold">🏥 雲端藥局預約系統</h1>
-                        <p className="text-emerald-100 text-sm mt-1">即時同步門市資料庫</p>
+                <div className="max-w-xl mx-auto bg-white min-h-screen shadow-2xl">
+                    <div className="bg-emerald-600 p-6 text-white text-center shadow-md">
+                        <h1 className="text-2xl font-bold tracking-wider">🏥 藥局網路預約系統</h1>
+                        <p className="text-emerald-100 text-xs mt-1 opacity-80">資料即時同步 · 快速領藥</p>
                     </div>
 
                     <div className="p-5 space-y-6">
                         <section>
                             <h2 className="font-bold text-gray-700 mb-3 flex items-center gap-2">
-                                <span className="bg-emerald-500 w-1 h-5 rounded"></span> 選擇藥品 (單位：盒)
+                                <span className="bg-emerald-500 w-1.5 h-5 rounded-full"></span> 選擇藥品 (單位：盒)
                             </h2>
-                            <div className="space-y-2">
+                            <div className="space-y-2 max-h-96 overflow-y-auto pr-1 custom-scrollbar">
                                 {medicines.map(item => (
-                                    <div key={item.code} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                    <div key={item.code} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-emerald-300 transition">
                                         <div className="flex-1">
-                                            <div className="font-bold text-gray-800">{item.name}</div>
-                                            <div className="text-emerald-600 font-mono text-sm">${item.price} / 盒</div>
+                                            <div className="font-bold text-gray-800 text-sm">{item.name}</div>
+                                            <div className="text-emerald-600 font-mono text-xs font-semibold">${item.price} / 盒</div>
                                         </div>
                                         <input 
-                                            type="number" min="0" className="w-20 border-2 border-gray-200 rounded-md p-1 text-center focus:border-emerald-500 outline-none"
+                                            type="number" min="0" placeholder="0"
+                                            className="w-16 border-2 border-gray-100 rounded-md p-1.5 text-center focus:border-emerald-500 outline-none"
                                             onChange={(e) => setCart({...cart, [item.code]: parseInt(e.target.value) || 0})}
                                         />
                                     </div>
@@ -95,24 +111,43 @@
                             </div>
                         </section>
 
-                        <div className="bg-emerald-50 border-2 border-emerald-100 p-4 rounded-xl flex justify-between items-center">
-                            <span className="font-bold text-emerald-800">應付金額：</span>
-                            <span className="text-3xl font-black text-emerald-600">${totalAmount}</span>
+                        <div className="bg-emerald-600 p-4 rounded-xl flex justify-between items-center shadow-inner text-white">
+                            <span className="font-bold">應付總金額：</span>
+                            <span className="text-3xl font-black">${totalAmount}</span>
                         </div>
 
-                        <section className="space-y-3">
-                            <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                                <span className="bg-gray-400 w-1 h-5 rounded"></span> 訂購人資訊
+                        <section className="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                            <h2 className="font-bold text-gray-700 flex items-center gap-2 mb-2">
+                                <span className="bg-orange-400 w-1.5 h-5 rounded-full"></span> 訂購人必填資訊
                             </h2>
-                            <input className="w-full border p-3 rounded-lg" placeholder="姓名" onChange={e => setCustomer({...customer, name: e.target.value})} />
-                            <input className="w-full border p-3 rounded-lg" placeholder="電話" onChange={e => setCustomer({...customer, phone: e.target.value})} />
-                            <input className="w-full border p-3 rounded-lg" placeholder="地址" onChange={e => setCustomer({...customer, address: e.target.value})} />
+                            <div className="space-y-3">
+                                <div className="relative">
+                                    <input className="w-full border-2 border-gray-200 p-3 rounded-lg focus:border-emerald-500 outline-none" 
+                                           placeholder="請輸入姓名" 
+                                           onChange={e => setCustomer({...customer, name: e.target.value})} />
+                                    <span className="absolute right-3 top-3.5 text-red-500 text-xs font-bold">*必填</span>
+                                </div>
+                                <div className="relative">
+                                    <input className="w-full border-2 border-gray-200 p-3 rounded-lg focus:border-emerald-500 outline-none" 
+                                           placeholder="請輸入電話" 
+                                           onChange={e => setCustomer({...customer, phone: e.target.value})} />
+                                    <span className="absolute right-3 top-3.5 text-red-500 text-xs font-bold">*必填</span>
+                                </div>
+                                <div className="relative">
+                                    <input className="w-full border-2 border-gray-200 p-3 rounded-lg focus:border-emerald-500 outline-none" 
+                                           placeholder="請輸入收件地址" 
+                                           onChange={e => setCustomer({...customer, address: e.target.value})} />
+                                    <span className="absolute right-3 top-3.5 text-red-500 text-xs font-bold">*必填</span>
+                                </div>
+                            </div>
                         </section>
 
-                        <div className="grid grid-cols-1 gap-3 pb-10">
-                            <button onClick={submitOrder} className="bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-emerald-700 transition">確認下單</button>
-                            <button onClick={exportToLine} className="bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-green-600 flex justify-center items-center gap-2">
-                                💬 複製訂單並分享至 LINE
+                        <div className="grid grid-cols-1 gap-3 pb-12">
+                            <button onClick={submitOrder} className="bg-emerald-600 text-white font-black py-4 rounded-xl shadow-lg hover:bg-emerald-700 active:scale-95 transition-all">
+                                🚀 送出訂單至藥局
+                            </button>
+                            <button onClick={exportToLine} className="bg-green-500 text-white font-black py-4 rounded-xl shadow-lg hover:bg-green-600 active:scale-95 transition-all flex justify-center items-center gap-2">
+                                💬 複製訂單內容 (貼送 LINE)
                             </button>
                         </div>
                     </div>
@@ -123,5 +158,9 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<OrderApp />);
     </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #10b981; border-radius: 10px; }
+    </style>
 </body>
 </html>
