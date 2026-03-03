@@ -14,15 +14,16 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // 連接你的 Supabase
         const SUPABASE_URL = 'https://fsznlgxfmgqmykllhabq.supabase.co'; 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzem5sZ3hmbWdxbXlrbGxoYWJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1MjE2MzAsImV4cCI6MjA4ODA5NzYzMH0.UO5btEp_d9yQFddBRSz8vrTxiSfUpQBwEqO3LqVkfqI';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        const CAT_OPTIONS = ["處方和OTC", "保健品", "醫材"];
+
         function AdminApp() {
             const [orders, setOrders] = useState([]);
             const [prods, setProds] = useState([]);
-            const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'stock'
+            const [activeTab, setActiveTab] = useState('orders');
 
             const fetchData = async () => {
                 const { data: o } = await supabaseClient.from('orders').select('*').order('created_at', { ascending: false });
@@ -33,8 +34,8 @@
 
             useEffect(() => { fetchData(); }, []);
 
-            const updateStock = async (id, newStock) => {
-                const { error } = await supabaseClient.from('商品表').update({ stock: parseInt(newStock) }).eq('id', id);
+            const updateField = async (id, field, value) => {
+                const { error } = await supabaseClient.from('商品表').update({ [field]: value }).eq('id', id);
                 if (!error) fetchData();
             };
 
@@ -44,7 +45,7 @@
                         <h1 className="text-2xl font-bold text-emerald-400">👨‍⚕️ 藥師管理系統</h1>
                         <div className="flex bg-gray-800 rounded-lg p-1">
                             <button onClick={() => setActiveTab('orders')} className={`px-4 py-2 rounded-md transition ${activeTab === 'orders' ? 'bg-emerald-600 text-white' : 'text-gray-400'}`}>訂單查看</button>
-                            <button onClick={() => setActiveTab('stock')} className={`px-4 py-2 rounded-md transition ${activeTab === 'stock' ? 'bg-emerald-600 text-white' : 'text-gray-400'}`}>庫存/商品管理</button>
+                            <button onClick={() => setActiveTab('stock')} className={`px-4 py-2 rounded-md transition ${activeTab === 'stock' ? 'bg-emerald-600 text-white' : 'text-gray-400'}`}>商品/庫存管理</button>
                         </div>
                     </header>
 
@@ -58,7 +59,7 @@
                                         <div className="text-emerald-300 font-medium whitespace-pre-wrap">{o.customer_info}</div>
                                     </div>
                                     <div className="flex-1 bg-gray-900 p-3 rounded border border-gray-700 text-sm leading-relaxed">
-                                        <span className="text-gray-500 block mb-1 underline">訂單內容與溫層：</span>
+                                        <span className="text-gray-500 block mb-1 underline">訂單內容：</span>
                                         {o.status}
                                     </div>
                                 </div>
@@ -66,27 +67,46 @@
                         </div>
                     ) : (
                         <div className="space-y-8">
-                            {["處方和OTC", "保健品", "醫材"].map(cat => (
+                            {CAT_OPTIONS.map(cat => (
                                 <section key={cat}>
                                     <h3 className="text-lg font-bold text-gray-400 mb-3 pl-2 border-l-2 border-gray-500">{cat}</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {prods.filter(p => p.category === cat).map(p => (
-                                            <div key={p.id} className="bg-gray-800 p-4 rounded-lg flex justify-between items-center border border-gray-700">
-                                                <div className="mr-4">
-                                                    <div className="font-bold text-sm">{p.name}</div>
-                                                    <div className="text-xs text-gray-500">${p.price}</div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-gray-400">庫存:</span>
-                                                    <input 
-                                                        type="number" 
-                                                        className="w-20 bg-black border border-gray-600 text-emerald-400 p-1 text-center rounded"
-                                                        defaultValue={p.stock}
-                                                        onBlur={(e) => updateStock(p.id, e.target.value)}
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm border-collapse">
+                                            <thead>
+                                                <tr className="bg-gray-800 text-gray-400 uppercase text-xs tracking-wider">
+                                                    <th className="p-3 border-b border-gray-700">商品名稱</th>
+                                                    <th className="p-3 border-b border-gray-700">價格</th>
+                                                    <th className="p-3 border-b border-gray-700">分類選單</th>
+                                                    <th className="p-3 border-b border-gray-700 w-24">庫存</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-700">
+                                                {prods.filter(p => p.category === cat).map(p => (
+                                                    <tr key={p.id} className="hover:bg-gray-850 transition">
+                                                        <td className="p-3 font-medium">{p.name}</td>
+                                                        <td className="p-3 text-emerald-500">${p.price}</td>
+                                                        <td className="p-3">
+                                                            {/* 💡 這裡是分類選單 */}
+                                                            <select 
+                                                                className="bg-gray-900 border border-gray-600 rounded px-2 py-1 outline-none focus:border-emerald-500"
+                                                                value={p.category}
+                                                                onChange={(e) => updateField(p.id, 'category', e.target.value)}
+                                                            >
+                                                                {CAT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                            </select>
+                                                        </td>
+                                                        <td className="p-3">
+                                                            <input 
+                                                                type="number" 
+                                                                className="w-20 bg-black border border-gray-600 text-emerald-400 p-1 text-center rounded focus:border-emerald-500 outline-none"
+                                                                defaultValue={p.stock}
+                                                                onBlur={(e) => updateField(p.id, 'stock', parseInt(e.target.value) || 0)}
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </section>
                             ))}
