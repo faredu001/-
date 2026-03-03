@@ -24,7 +24,7 @@
             const [medicines, setMedicines] = useState([]);
             const [cart, setCart] = useState({});
             const [customer, setCustomer] = useState({ name: '', phone: '', address: '' });
-            const [shipping, setShipping] = useState('常溫'); // 預設常溫
+            const [shipping, setShipping] = useState('常溫');
             const [loading, setLoading] = useState(true);
 
             const shippingFee = shipping === '常溫' ? 60 : 160;
@@ -45,67 +45,56 @@
 
             const finalTotal = productTotal > 0 ? productTotal + shippingFee : 0;
 
-            const checkForm = () => {
-                if (!customer.name.trim() || !customer.phone.trim() || !customer.address.trim()) { alert("請填妥必填資訊"); return false; }
-                if (productTotal === 0) { alert("請選擇商品數量"); return false; }
-                return true;
-            };
-
-            const handleSubmit = async () => {
-                if (!checkForm()) return;
+            const handleOrder = async () => {
+                if (!customer.name.trim() || !customer.phone.trim() || !customer.address.trim()) return alert("請填妥收件人必填資訊");
+                if (productTotal === 0) return alert("請選擇下單商品");
 
                 const orderItems = medicines.filter(m => cart[m.code] > 0).map(m => `${m.name}*${cart[m.code]}盒`).join('、');
                 const combinedInfo = `姓名:${customer.name} / 電話:${customer.phone} / 地址:${customer.address}`;
-                const statusDetail = `【${shipping}】${orderItems} / 總額:$${finalTotal}(含運)`;
+                const statusDetail = `【${shipping}】${orderItems} / 總計:$${finalTotal}(含運)`;
 
-                // 1. 存入資料庫
                 const { error } = await supabaseClient.from('orders').insert([{
                     customer_info: combinedInfo,
                     status: statusDetail,
                     created_at: new Date().toISOString()
                 }]);
 
-                if (error) return alert("系統錯誤，請重試");
-
-                // 2. 複製文字
-                const lineText = `【新訂單 - ${shipping}】\n👤 姓名：${customer.name}\n📞 電話：${customer.phone}\n🏠 地址：${customer.address}\n----------\n📦 品項：${orderItems}\n💰 總計：$${finalTotal}\n----------\n立即下單成功，轉跳 LINE 確認`;
-                await navigator.clipboard.writeText(lineText);
-                
-                alert("訂單已存檔並複製！即將開啟 LINE 並貼送給藥局人員。");
-                
-                // 3. 開啟 LINE
-                window.location.href = "https://lin.ee/XUCTd0x";
+                if (!error) {
+                    const lineText = `【新訂單 - ${shipping}】\n👤 姓名：${customer.name}\n📞 電話：${customer.phone}\n🏠 地址：${customer.address}\n----------\n📦 品項：${orderItems}\n💰 總計：$${finalTotal}\n----------\n系統已自動存檔，點擊連結跳轉 LINE：`;
+                    await navigator.clipboard.writeText(lineText);
+                    alert("訂單已送出並複製內容！即將跳轉至 LINE App。");
+                    window.location.href = "https://lin.ee/XUCTd0x";
+                }
             };
 
-            if (loading) return <div className="p-10 text-center">載入中...</div>;
+            if (loading) return <div className="p-10 text-center text-emerald-600 font-bold">門市連線中...</div>;
 
-            // 分類邏輯
             const categories = ["處方和OTC", "保健品", "醫材"];
 
             return (
-                <div className="max-w-xl mx-auto bg-white min-h-screen shadow-xl pb-20">
+                <div className="max-w-xl mx-auto bg-white min-h-screen shadow-lg pb-10">
                     <div className="bg-emerald-600 p-6 text-white text-center">
                         <h1 className="text-2xl font-bold">商品網路下單系統</h1>
-                        <p className="text-xs mt-2 bg-emerald-700 p-2 rounded leading-relaxed">
-                            ⚠️ 商品皆不含運，常溫品60元起可宅配或便利商店；冷藏160元起黑貓宅配
-                        </p>
+                        <div className="text-[11px] mt-3 bg-emerald-700 p-2 rounded leading-relaxed border border-emerald-500/50">
+                            🚚 商品皆不含運，常溫品60元起可宅配或便利商店；冷藏160元起黑貓宅配
+                        </div>
                     </div>
 
                     <div className="p-5 space-y-8">
                         {categories.map(cat => (
                             <section key={cat}>
-                                <h2 className="font-bold text-emerald-800 border-b-2 border-emerald-500 mb-3">{cat}</h2>
+                                <h2 className="font-bold text-emerald-800 border-l-4 border-emerald-500 pl-2 mb-3">{cat}</h2>
                                 <div className="space-y-3">
                                     {medicines.filter(m => m.category === cat).map(item => (
-                                        <div key={item.code} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border">
+                                        <div key={item.code} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
                                             <div className="flex-1">
-                                                <div className="text-sm font-bold">{item.name}</div>
+                                                <div className="text-sm font-bold text-gray-800">{item.name}</div>
                                                 <div className="text-emerald-600 font-mono text-xs">${item.price} / 盒</div>
                                             </div>
                                             {item.stock > 0 ? (
-                                                <input type="number" min="0" className="w-16 border p-1 rounded text-center" onChange={(e) => setCart({...cart, [item.code]: parseInt(e.target.value) || 0})} />
+                                                <input type="number" min="0" placeholder="0" className="w-16 border-2 border-emerald-100 p-1 rounded text-center focus:border-emerald-500 outline-none" onChange={(e) => setCart({...cart, [item.code]: parseInt(e.target.value) || 0})} />
                                             ) : (
-                                                <span className="text-red-500 text-xs font-bold bg-red-50 px-2 py-1 rounded">補貨中</span>
+                                                <span className="text-red-500 text-[10px] font-bold bg-red-50 px-2 py-1 border border-red-100 rounded">補貨中</span>
                                             )}
                                         </div>
                                     ))}
@@ -113,31 +102,32 @@
                             </section>
                         ))}
 
-                        <div className="bg-orange-50 p-4 rounded-xl space-y-3 border-2 border-orange-200 text-sm">
-                            <p className="font-bold text-orange-800">🚛 請選擇運送方式：</p>
-                            <div className="flex gap-6">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" checked={shipping === '常溫'} onChange={() => setShipping('常溫')} className="w-4 h-4" /> 常溫 ($60)
+                        <div className="bg-amber-50 p-4 rounded-xl border-2 border-amber-200 space-y-3 shadow-sm">
+                            <p className="font-bold text-amber-900 text-sm flex items-center gap-2">🚛 選擇運送溫層 (必選)：</p>
+                            <div className="flex gap-8 px-2">
+                                <label className="flex items-center gap-2 cursor-pointer font-medium text-amber-800">
+                                    <input type="radio" checked={shipping === '常溫'} onChange={() => setShipping('常溫')} className="w-4 h-4 accent-amber-600" /> 常溫 ($60)
                                 </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" checked={shipping === '冷藏'} onChange={() => setShipping('冷藏')} className="w-4 h-4" /> 冷藏 ($160)
+                                <label className="flex items-center gap-2 cursor-pointer font-medium text-amber-800">
+                                    <input type="radio" checked={shipping === '冷藏'} onChange={() => setShipping('冷藏')} className="w-4 h-4 accent-amber-600" /> 冷藏 ($160)
                                 </label>
                             </div>
                         </div>
 
-                        <div className="bg-emerald-600 p-4 rounded-xl flex justify-between items-center text-white shadow-lg">
-                            <span className="font-bold italic">應付總計 (含運)：</span>
+                        <div className="bg-emerald-600 p-5 rounded-2xl flex justify-between items-center text-white shadow-lg">
+                            <span className="font-bold tracking-widest text-emerald-100 italic">應付總額 (含運)：</span>
                             <span className="text-3xl font-black">${finalTotal}</span>
                         </div>
 
-                        <section className="space-y-3 bg-gray-100 p-4 rounded-xl">
-                            <input className="w-full border p-3 rounded-lg" placeholder="姓名" onChange={e => setCustomer({...customer, name: e.target.value})} />
-                            <input className="w-full border p-3 rounded-lg" placeholder="電話" onChange={e => setCustomer({...customer, phone: e.target.value})} />
-                            <input className="w-full border p-3 rounded-lg" placeholder="收件地址" onChange={e => setCustomer({...customer, address: e.target.value})} />
+                        <section className="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                            <h2 className="font-bold text-gray-700 text-sm">📋 訂購人資訊</h2>
+                            <input className="w-full border-2 border-gray-200 p-3 rounded-xl focus:border-emerald-500 outline-none text-sm" placeholder="收件人姓名" onChange={e => setCustomer({...customer, name: e.target.value})} />
+                            <input className="w-full border-2 border-gray-200 p-3 rounded-xl focus:border-emerald-500 outline-none text-sm" placeholder="收件電話" onChange={e => setCustomer({...customer, phone: e.target.value})} />
+                            <input className="w-full border-2 border-gray-200 p-3 rounded-xl focus:border-emerald-500 outline-none text-sm" placeholder="完整收件地址" onChange={e => setCustomer({...customer, address: e.target.value})} />
                         </section>
 
-                        <button onClick={handleSubmit} className="w-full bg-emerald-600 text-white font-black py-5 rounded-2xl shadow-xl active:scale-95 transition-all text-lg">
-                            ✅ 確認下單並開啟 LINE
+                        <button onClick={handleOrder} className="w-full bg-emerald-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-emerald-700 active:scale-95 transition-all text-lg shadow-emerald-200">
+                            ✅ 確認訂購並開啟 LINE
                         </button>
                     </div>
                 </div>
