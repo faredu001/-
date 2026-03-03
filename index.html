@@ -30,7 +30,7 @@
             useEffect(() => {
                 const fetchProducts = async () => {
                     const { data, error } = await supabaseClient
-                        .from('products')
+                        .from('商品表')
                         .select('*')
                         .order('id', { ascending: true });
                     if (data) setMedicines(data);
