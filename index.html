@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>藥局雲端下單系統</title>
+    <title> 商品雲端下單系統</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -58,7 +58,7 @@
 
             const exportToLine = () => {
                 if (!checkForm()) return;
-                let text = `【藥局新訂單】\n👤 姓名：${customer.name}\n📞 電話：${customer.phone}\n🏠 地址：${customer.address}\n----------\n📦 品項：${getOrderDetailText()}\n💰 總計：$${totalAmount}\n⏰ 時間：${new Date().toLocaleString()}`;
+                let text = `【新訂單】\n👤 姓名：${customer.name}\n📞 電話：${customer.phone}\n🏠 地址：${customer.address}\n----------\n📦 品項：${getOrderDetailText()}\n💰 總計：$${totalAmount}\n⏰ 時間：${new Date().toLocaleString()}`;
                 navigator.clipboard.writeText(text);
                 alert("內容已複製！");
             };
@@ -86,14 +86,14 @@
             return (
                 <div className="max-w-xl mx-auto bg-white min-h-screen shadow-2xl">
                     <div className="bg-emerald-600 p-6 text-white text-center shadow-md">
-                        <h1 className="text-2xl font-bold tracking-wider">🏥 藥局網路預約系統</h1>
-                        <p className="text-emerald-100 text-xs mt-1 opacity-80">資料即時同步 · 快速領藥</p>
+                        <h1 className="text-2xl font-bold tracking-wider"> 商品網路下單系統</h1>
+                        <p className="text-emerald-100 text-xs mt-1 opacity-80"> 品項不定時更新</p>
                     </div>
 
                     <div className="p-5 space-y-6">
                         <section>
                             <h2 className="font-bold text-gray-700 mb-3 flex items-center gap-2 text-base">
-                                <span className="bg-emerald-500 w-1.5 h-5 rounded-full"></span> 選擇藥品 (單位：盒)
+                                <span className="bg-emerald-500 w-1.5 h-5 rounded-full"></span> 選擇商品 (單位：盒/瓶 原廠完整包裝)
                             </h2>
                             <div className="space-y-2 max-h-96 overflow-y-auto pr-1 custom-scrollbar">
                                 {medicines.map(item => (
