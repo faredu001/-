@@ -48,20 +48,17 @@
                 return true;
             };
 
-            // 💡 產生詳細的訂單字串
             const getOrderDetailText = () => {
                 let details = "";
                 medicines.forEach(m => {
-                    if (cart[m.code] > 0) {
-                        details += `${m.name}*${cart[m.code]}盒 / `;
-                    }
+                    if (cart[m.code] > 0) details += `${m.name}*${cart[m.code]}盒、`;
                 });
-                return details;
+                return details.replace(/、$/, "");
             };
 
             const exportToLine = () => {
                 if (!checkForm()) return;
-                let text = `【藥局新訂單】\n👤 姓名：${customer.name}\n📞 電話：${customer.phone}\n🏠 地址：${customer.address}\n----------\n${getOrderDetailText().replace(/ \/ $/,"")}\n----------\n💰 總計：$${totalAmount}\n⏰ 時間：${new Date().toLocaleString()}`;
+                let text = `【藥局新訂單】\n👤 姓名：${customer.name}\n📞 電話：${customer.phone}\n🏠 地址：${customer.address}\n----------\n📦 品項：${getOrderDetailText()}\n💰 總計：$${totalAmount}\n⏰ 時間：${new Date().toLocaleString()}`;
                 navigator.clipboard.writeText(text);
                 alert("內容已複製！");
             };
@@ -69,16 +66,18 @@
             const submitOrder = async () => {
                 if (!checkForm()) return;
                 
-                // 💡 修改這裡：將品項細節也存入 status
-                const orderSummary = `[清單: ${getOrderDetailText()}] 電話:${customer.phone} / 地址:${customer.address} / 總額:${totalAmount}`;
+                // 合併個資欄位
+                const combinedInfo = `姓名:${customer.name} / 電話:${customer.phone} / 地址:${customer.address}`;
+                // 訂單內容欄位
+                const orderSummary = `${getOrderDetailText()} / 總額:$${totalAmount}`;
 
                 const { error } = await supabaseClient.from('orders').insert([{
-                    name: customer.name,
-                    status: orderSummary,
+                    customer_info: combinedInfo, // 存入新欄位
+                    status: orderSummary,        // 存入原本的 status 欄位
                     created_at: new Date().toISOString()
                 }]);
                 
-                if (!error) alert("訂單已傳送至雲端系統！");
+                if (!error) alert("訂單已成功傳送至雲端系統！");
                 else alert("傳送失敗：" + error.message);
             };
 
@@ -122,21 +121,21 @@
                             <h2 className="font-bold text-gray-700 flex items-center gap-2 mb-2">
                                 <span className="bg-orange-400 w-1.5 h-5 rounded-full"></span> 訂購人必填資訊
                             </h2>
-                            <div className="space-y-3">
+                            <div className="space-y-3 text-sm">
                                 <div className="relative">
-                                    <input className="w-full border-2 border-gray-200 p-3 rounded-lg focus:border-emerald-500 outline-none text-sm" 
+                                    <input className="w-full border-2 border-gray-200 p-3 rounded-lg focus:border-emerald-500 outline-none" 
                                            placeholder="請輸入姓名" 
                                            onChange={e => setCustomer({...customer, name: e.target.value})} />
                                     <span className="absolute right-3 top-3.5 text-red-500 text-[10px] font-bold">*必填</span>
                                 </div>
                                 <div className="relative">
-                                    <input className="w-full border-2 border-gray-200 p-3 rounded-lg focus:border-emerald-500 outline-none text-sm" 
+                                    <input className="w-full border-2 border-gray-200 p-3 rounded-lg focus:border-emerald-500 outline-none" 
                                            placeholder="請輸入電話" 
                                            onChange={e => setCustomer({...customer, phone: e.target.value})} />
                                     <span className="absolute right-3 top-3.5 text-red-500 text-[10px] font-bold">*必填</span>
                                 </div>
                                 <div className="relative">
-                                    <input className="w-full border-2 border-gray-200 p-3 rounded-lg focus:border-emerald-500 outline-none text-sm" 
+                                    <input className="w-full border-2 border-gray-200 p-3 rounded-lg focus:border-emerald-500 outline-none" 
                                            placeholder="請輸入收件地址" 
                                            onChange={e => setCustomer({...customer, address: e.target.value})} />
                                     <span className="absolute right-3 top-3.5 text-red-500 text-[10px] font-bold">*必填</span>
@@ -145,10 +144,10 @@
                         </section>
 
                         <div className="grid grid-cols-1 gap-3 pb-12">
-                            <button onClick={submitOrder} className="bg-emerald-600 text-white font-black py-4 rounded-xl shadow-lg hover:bg-emerald-700 active:scale-95 transition-all text-base">
+                            <button onClick={submitOrder} className="bg-emerald-600 text-white font-black py-4 rounded-xl shadow-lg hover:bg-emerald-700 active:scale-95 transition-all">
                                 🚀 送出訂單至藥局
                             </button>
-                            <button onClick={exportToLine} className="bg-green-500 text-white font-black py-4 rounded-xl shadow-lg hover:bg-green-600 active:scale-95 transition-all flex justify-center items-center gap-2 text-base">
+                            <button onClick={exportToLine} className="bg-green-500 text-white font-black py-4 rounded-xl shadow-lg hover:bg-green-600 active:scale-95 transition-all flex justify-center items-center gap-2">
                                 💬 複製訂單內容 (貼送 LINE)
                             </button>
                         </div>
