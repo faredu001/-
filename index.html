@@ -28,10 +28,14 @@
             const [loading, setLoading] = useState(true);
             const [finishModal, setFinishModal] = useState(false);
             const [orderText, setOrderText] = useState('');
+            const [isMobile, setIsMobile] = useState(false);
 
             const shippingFee = shipping === '常溫' ? 60 : 160;
 
-            useEffect(() => { fetchProducts(); }, []);
+            useEffect(() => { 
+                fetchProducts();
+                setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+            }, []);
 
             const fetchProducts = async () => {
                 const { data } = await supabaseClient.from('商品表').select('*').order('id', { ascending: true });
@@ -50,7 +54,7 @@
                 if (!customer.name.trim() || !customer.phone.trim() || !customer.address.trim()) return alert("請填妥收件人資訊");
                 if (productTotal === 0) return alert("請選擇下單商品");
 
-                // 1. 檢查庫存
+                // 檢查庫存
                 for (const code of Object.keys(cart)) {
                     if (cart[code] > 0) {
                         const item = medicines.find(m => m.code === code);
@@ -61,7 +65,7 @@
                 const orderItems = medicines.filter(m => cart[m.code] > 0).map(m => `${m.name}*${cart[m.code]}盒`).join('、');
                 const fullOrderText = `【新訂單 - ${shipping}】\n👤 姓名：${customer.name}\n📞 電話：${customer.phone}\n🏠 地址：${customer.address}\n----------\n📦 品項：${orderItems}\n💰 總計：$${finalTotal}\n⏰ 時間：${new Date().toLocaleString()}`;
                 
-                // 2. 資料庫存檔
+                // 資料庫存檔
                 const { error } = await supabaseClient.from('orders').insert([{
                     customer_info: `姓名:${customer.name} / 電話:${customer.phone} / 地址:${customer.address}`,
                     status: `【${shipping}】${orderItems} / 總額:$${finalTotal}`,
@@ -70,7 +74,7 @@
 
                 if (error) return alert("連線錯誤，請稍後再試");
 
-                // 3. 扣除庫存
+                // 扣除庫存
                 for (const code of Object.keys(cart)) {
                     if (cart[code] > 0) {
                         const item = medicines.find(m => m.code === code);
@@ -78,45 +82,61 @@
                     }
                 }
 
-                // 4. 設定顯示文字並開啟完成視窗
+                // 設定顯示文字並開啟完成視窗
                 setOrderText(fullOrderText);
                 setFinishModal(true);
                 
-                // 嘗試自動複製
+                // 自動複製
                 try {
                     await navigator.clipboard.writeText(fullOrderText);
                 } catch (err) { console.log("自動複製失敗"); }
             };
 
-            if (loading) return <div className="p-10 text-center text-emerald-600 animate-pulse">系統載入中...</div>;
+            if (loading) return <div className="p-10 text-center text-emerald-600 animate-pulse font-bold italic">門市系統連線中...</div>;
 
             return (
                 <div className="max-w-xl mx-auto bg-white min-h-screen shadow-lg pb-10 relative">
                     {/* 完成彈窗 */}
                     {finishModal && (
                         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-                            <div className="bg-white rounded-3xl w-full max-w-sm p-6 text-center shadow-2xl overflow-hidden">
-                                <div className="text-5xl mb-4">🎉</div>
-                                <h3 className="text-xl font-bold text-gray-800 mb-2">下訂完成！</h3>
-                                <p className="text-sm text-emerald-600 font-bold mb-4 italic underline decoration-2">請點擊下方按鈕將訂單傳送至 LINE</p>
+                            <div className="bg-white rounded-3xl w-full max-w-md p-8 text-center shadow-2xl">
+                                <div className="text-5xl mb-4">✅</div>
+                                <h3 className="text-2xl font-bold text-gray-800 mb-4">下訂成功！</h3>
+                                
+                                <div className="text-md text-emerald-700 font-bold mb-6 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                                    {isMobile ? 
+                                        "已下訂完成，請將訂單傳至 LINE" : 
+                                        "訂單已複製，請將訂單資訊傳到 LINE 告知，謝謝配合"
+                                    }
+                                </div>
+
                                 <div className="bg-gray-100 p-4 rounded-xl text-left text-xs text-gray-600 font-mono mb-6 max-h-40 overflow-y-auto border border-dashed border-gray-400">
                                     {orderText.split('\n').map((line, i) => <div key={i}>{line}</div>)}
                                 </div>
-                                <button 
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(orderText);
-                                        window.location.href = "https://lin.ee/XUCTd0x";
-                                    }}
-                                    className="w-full bg-green-500 text-white font-black py-4 rounded-xl shadow-lg hover:bg-green-600 active:scale-95 transition-all text-lg"
-                                >
-                                    💬 前往 LINE 貼上訂單
-                                </button>
-                                <button onClick={() => window.location.reload()} className="mt-4 text-xs text-gray-400 underline">返回下單頁</button>
+
+                                {isMobile ? (
+                                    <button 
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(orderText);
+                                            window.location.href = "https://lin.ee/XUCTd0x";
+                                        }}
+                                        className="w-full bg-green-500 text-white font-black py-4 rounded-xl shadow-lg hover:bg-green-600 active:scale-95 transition-all text-lg"
+                                    >
+                                        💬 前往 LINE 貼上訂單
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={() => window.location.reload()}
+                                        className="w-full bg-emerald-600 text-white font-black py-4 rounded-xl shadow-lg hover:bg-emerald-700 active:scale-95 transition-all text-lg"
+                                    >
+                                        我知道了 (返回頁面)
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}
 
-                    <div className="bg-emerald-600 p-6 text-white text-center">
+                    <div className="bg-emerald-600 p-6 text-white text-center shadow-md">
                         <h1 className="text-2xl font-bold italic tracking-tighter">商品網路下單系統</h1>
                         <div className="text-[10px] mt-3 bg-emerald-700 p-2 rounded leading-relaxed border border-emerald-500/50">
                             🚚 商品皆不含運，常溫品60元起；冷藏160元起
@@ -129,7 +149,7 @@
                                 <h2 className="font-bold text-emerald-800 border-l-4 border-emerald-500 pl-2 mb-3 text-sm">{cat}</h2>
                                 <div className="space-y-3">
                                     {medicines.filter(m => m.category === cat).map(item => (
-                                        <div key={item.code} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100 shadow-sm">
+                                        <div key={item.code} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100 shadow-sm transition-all hover:border-emerald-200">
                                             <div className="flex-1">
                                                 <div className="text-sm font-bold text-gray-800">{item.name}</div>
                                                 <div className="text-emerald-600 font-mono text-xs font-bold">${item.price} <span className="text-gray-400 font-normal ml-1"> (庫存:{item.stock})</span></div>
@@ -146,7 +166,7 @@
                         ))}
 
                         <div className="bg-amber-50 p-4 rounded-xl border-2 border-amber-200 shadow-sm">
-                            <p className="font-bold text-amber-900 text-xs mb-3">🚛 選擇運送溫層：</p>
+                            <p className="font-bold text-amber-900 text-xs mb-3 flex items-center gap-2">🚚 選擇運送溫層：</p>
                             <div className="flex gap-10">
                                 <label className="flex items-center gap-2 cursor-pointer font-bold text-amber-800 text-sm">
                                     <input type="radio" checked={shipping === '常溫'} onChange={() => setShipping('常溫')} className="w-4 h-4 accent-amber-600" /> 常溫 $60
@@ -163,7 +183,7 @@
                         </div>
 
                         <section className="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-inner">
-                            <h2 className="font-bold text-gray-700 text-xs">📋 收件人必填資訊</h2>
+                            <h2 className="font-bold text-gray-700 text-xs flex items-center gap-2">📋 收件人必填資訊</h2>
                             <input className="w-full border-2 border-gray-200 p-3 rounded-xl focus:border-emerald-500 outline-none text-sm shadow-sm" placeholder="姓名" onChange={e => setCustomer({...customer, name: e.target.value})} />
                             <input className="w-full border-2 border-gray-200 p-3 rounded-xl focus:border-emerald-500 outline-none text-sm shadow-sm" placeholder="電話" onChange={e => setCustomer({...customer, phone: e.target.value})} />
                             <input className="w-full border-2 border-gray-200 p-3 rounded-xl focus:border-emerald-500 outline-none text-sm shadow-sm" placeholder="完整收件地址" onChange={e => setCustomer({...customer, address: e.target.value})} />
